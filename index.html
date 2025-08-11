@@ -1,38 +1,76 @@
 <!DOCTYPE html>
 <html lang="pt">
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Abrir Porta</title>
-<style>
-  body{font-family:system-ui,Arial,sans-serif;background:#0b0f14;color:#e8e8e8;display:grid;place-items:center;height:100dvh;margin:0}
-  .card{background:#151b22;padding:28px;border-radius:20px;box-shadow:0 10px 30px rgba(0,0,0,.35);max-width:420px}
-  h1{margin:0 0 8px;font-size:1.25rem} p{opacity:.8;margin:0 0 18px}
-  button{width:100%;padding:16px;border:0;border-radius:14px;font-weight:700;cursor:pointer}
-  .primary{background:#38bdf8;color:#0b0f14}
-  .primary:disabled{opacity:.6;cursor:not-allowed}
-  .msg{margin-top:14px;min-height:22px}.ok{color:#22c55e}.err{color:#f87171}.hint{opacity:.7;font-size:.9rem}
-</style>
-<div class="card">
-  <h1>Porta de Entrada</h1>
-  <p>Ao chegar à porta, toque em “Abrir”.</p>
-  <button id="btn" class="primary">Abrir</button>
-  <div id="msg" class="msg"></div>
-  <div class="hint">Se falhar, aguarde alguns segundos e tente de novo.</div>
-</div>
-<script>
-const ENDPOINT = "http://192.168.0.242/open?token=seckey"; // <= muda isto
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Abrir Porta</title>
+  <script src="https://unpkg.com/paho-mqtt/mqttws31.min.js"></script>
+  <style>
+    body{font-family:system-ui,Arial,sans-serif;background:#0b0f14;color:#e8e8e8;display:grid;place-items:center;min-height:100vh;margin:0}
+    .card{background:#151b22;border-radius:20px;padding:28px;box-shadow:0 10px 30px rgba(0,0,0,.35);max-width:420px}
+    h1{margin:0 0 8px;font-size:1.25rem} p{opacity:.8;margin:0 0 18px}
+    button{width:100%;padding:16px;border:0;border-radius:14px;font-weight:700;cursor:pointer}
+    .primary{background:#38bdf8;color:#0b0f14}.primary:disabled{opacity:.6;cursor:not-allowed}
+    .msg{margin-top:14px;min-height:22px}.ok{color:#22c55e}.err{color:#f87171}.hint{opacity:.7;font-size:.9rem}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Porta de Entrada</h1>
+    <p>Quando estiver à porta, toque em “Abrir”.</p>
+    <button id="btn" class="primary">Abrir</button>
+    <div id="msg" class="msg"></div>
+    <div class="hint">Se não abrir, aguarde alguns segundos e tente novamente.</div>
+  </div>
 
-const btn=document.getElementById("btn"),msg=document.getElementById("msg");
-async function abrir(){
-  const t=btn.textContent; btn.textContent="A abrir…"; btn.disabled=true; msg.textContent="";
-  try{
-    const r=await fetch(ENDPOINT,{method:"POST",mode:"cors"});
-    if(!r.ok) throw new Error(r.status);
-    msg.textContent="Aberto. Pode entrar."; msg.className="msg ok";
-  }catch(e){
-    msg.textContent="Não foi possível abrir."; msg.className="msg err";
-  }finally{
-    btn.textContent=t; setTimeout(()=>btn.disabled=false, 2500);
-  }
-}
-btn.addEventListener("click", abrir);
-</script>
+  <script>
+    // ===== AD AFRUIT IO (usa a tua conta) =====
+    const AIO_USERNAME = "Cidade";
+    const AIO_KEY      = "aio_cvri50Is4s8xQ5EofVutb17VDqBk";
+    const FEED         = "porta";
+    const TOKEN        = "seckey"; // tem de bater com o do ESP
+
+    // Ligação MQTT sobre WebSocket seguro (WSS)
+    const clientId = "web-" + Math.random().toString(16).slice(2);
+    const client = new Paho.MQTT.Client("io.adafruit.com", 443, "/mqtt", clientId);
+    client.onConnectionLost = (resp) => console.log("MQTT lost:", resp.errorMessage);
+
+    function connectMqtt() {
+      return new Promise((resolve, reject) => {
+        client.connect({
+          useSSL: true,
+          userName: AIO_USERNAME,
+          password: AIO_KEY,
+          timeout: 5,
+          onSuccess: resolve,
+          onFailure: reject,
+        });
+      });
+    }
+
+    async function abrir() {
+      const btn = document.getElementById("btn");
+      const msg = document.getElementById("msg");
+      const old = btn.textContent;
+      btn.disabled = true; btn.textContent = "A abrir…"; msg.textContent = "";
+      try {
+        if (!client.isConnected()) await connectMqtt();
+        const topic = `${AIO_USERNAME}/feeds/${FEED}`;
+        const payload = `abrir:${TOKEN}`;
+        const m = new Paho.MQTT.Message(payload);
+        m.destinationName = topic;
+        client.send(m);
+        msg.textContent = "Aberto. Pode entrar."; msg.className = "msg ok";
+      } catch (e) {
+        console.error(e);
+        msg.textContent = "Não foi possível abrir."; msg.className = "msg err";
+      } finally {
+        btn.textContent = old;
+        setTimeout(()=>btn.disabled=false, 2500);
+      }
+    }
+
+    document.getElementById("btn").addEventListener("click", abrir);
+  </script>
+</body>
+</html>
