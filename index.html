@@ -1,44 +1,246 @@
 <!DOCTYPE html>
 <html lang="pt">
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Abrir Porta</title>
-<style>
-  body{font-family:system-ui,Arial,sans-serif;background:#0b0f14;color:#e8e8e8;display:grid;place-items:center;min-height:100vh;margin:0}
-  .card{background:#151b22;border-radius:20px;padding:28px;box-shadow:0 10px 30px rgba(0,0,0,.35);max-width:420px}
-  h1{margin:0 0 8px;font-size:1.25rem} p{opacity:.8;margin:0 0 18px}
-  button{width:100%;padding:16px;border:0;border-radius:14px;font-weight:700;cursor:pointer}
-  .primary{background:#38bdf8;color:#0b0f14}.primary:disabled{opacity:.6;cursor:not-allowed}
-  .msg{margin-top:14px;min-height:22px}.ok{color:#22c55e}.err{color:#f87171}
-  .log{margin-top:10px;font-size:.85rem;opacity:.8;max-width:420px;word-break:break-all;white-space:pre-wrap}
-</style>
-<div class="card">
-  <h1>Porta de Entrada</h1>
-  <p>Quando estiver à porta, toque em “Abrir”.</p>
-  <button id="btn" class="primary">Abrir</button>
-  <div id="msg" class="msg"></div>
-  <div id="log" class="log"></div>
-</div>
-
-<script>
-  const ENDPOINT = "https://porta-proxy.cidadealtruista.workers.dev/?t=guest-2025-08";
-
-  const btn = document.getElementById("btn");
-  const msg = document.getElementById("msg");
-
-  btn.addEventListener("click", async () => {
-    const old = btn.textContent;
-    btn.disabled = true; btn.textContent = "A abrir…"; msg.textContent = "";
-    try {
-      const r = await fetch(ENDPOINT, { method: "POST" });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      msg.textContent = "Aberto. Pode entrar."; msg.className = "msg ok";
-    } catch {
-      msg.textContent = "Não foi possível abrir."; msg.className = "msg err";
-    } finally {
-      btn.textContent = old; setTimeout(()=>btn.disabled=false, 2500);
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Abrir Porta — Ninho Francos</title>
+  <meta name="color-scheme" content="light dark" />
+  <style>
+    :root{
+      --azul:#466365; --amarelo:#f5e0b7; --texto-escuro:#101818; --amarelo-escuro:#5b5344;
+      --azul-esc:#344a4c; --amarelo-esc:#e7d0a0; --card-bg:rgba(16,24,24,.75); --card-bd:rgba(255,255,255,.08);
+      --ok:#22c55e; --err:#f87171; --radius:20px; --shadow:0 16px 50px rgba(0,0,0,.35);
     }
-  });
-</script>
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif; color:#f7f7f5;
+      background:
+        radial-gradient(1200px 600px at 20% -10%, rgba(255,255,255,.06), transparent 60%),
+        linear-gradient(180deg, var(--azul), var(--amarelo-escuro));
+      display:grid; place-items:center;
+      -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    }
+    .wrap{ width:min(92vw,560px) }
 
+    .top{ margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .title{ font-weight:800; letter-spacing:.3px; font-size:1.1rem; color:var(--amarelo); text-shadow:0 1px 0 rgba(0,0,0,.2); }
 
+    .card{
+      position:relative;
+      background:var(--card-bg); border:1px solid var(--card-bd);
+      border-radius:var(--radius); box-shadow:var(--shadow); overflow:clip;
+    }
+
+    /* Botões de idioma sobre a imagem */
+    .langbar{
+      position:absolute; top:10px; right:10px; display:flex; gap:8px; z-index:2;
+      background:rgba(16,24,24,.45); backdrop-filter:saturate(120%) blur(4px);
+      padding:6px; border-radius:999px; border:1px solid rgba(255,255,255,.08);
+    }
+    .langbar button{
+      border:0; padding:6px 10px; border-radius:999px; font-weight:700; cursor:pointer;
+      background:transparent; color:#f3f3f0;
+    }
+    .langbar button[aria-pressed="true"]{
+      background:var(--amarelo); color:var(--texto-escuro);
+    }
+
+    .hero{ aspect-ratio:16/10; width:100%; object-fit:cover; display:block; filter:saturate(1.05) contrast(1.05); }
+    .content{ padding:22px; }
+    h1{ font-size:1.35rem; margin:0 0 6px; color:var(--amarelo) }
+    p.sub{ margin:0 0 18px; color:#dcd7ce; opacity:.95 }
+
+    .btn{
+      width:100%; padding:16px 18px; font-size:1.1rem; font-weight:800;
+      border:0; border-radius:14px; background:var(--amarelo); color:var(--texto-escuro);
+      cursor:pointer; transform:translateZ(0);
+      transition:transform .08s ease, box-shadow .2s ease, filter .2s ease;
+      box-shadow:0 8px 20px rgba(0,0,0,.25);
+    }
+    .btn:hover{ filter:brightness(1.03) }
+    .btn:active{ transform:scale(.98) }
+    .btn:disabled{ opacity:.6; cursor:not-allowed }
+
+    .spinner{ display:inline-block; width:18px; height:18px; vertical-align:-3px; margin-right:8px;
+      border:2px solid rgba(16,24,24,.25); border-top-color:var(--texto-escuro);
+      border-radius:50%; animation:spin .8s linear infinite }
+    @keyframes spin{ to{ transform:rotate(360deg) } }
+    @media (prefers-reduced-motion:reduce){ .btn,.spinner{ animation:none; transition:none } }
+
+    .msg{ margin-top:12px; min-height:22px; font-size:.95rem }
+    .ok{ color:var(--ok) } .err{ color:var(--err) }
+
+    .hint{ margin-top:10px; font-size:.9rem; color:#f0eadf; opacity:.95 }
+
+    .footer{
+      text-align:center; margin-top:12px; color:#d0cbc1; opacity:.9;
+      display:flex; flex-direction:column; align-items:center; gap:8px;
+    }
+    .footer-logo{ height:30px; width:auto; opacity:.95; display:block; filter: drop-shadow(0 1px 0 rgba(0,0,0,.2)); }
+    .copy{ font-size:.85rem; }
+    .site-link a{
+      color: var(--amarelo);
+      text-decoration: none;
+      font-weight: 700;
+    }
+    .site-link a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="top">
+      <div class="title">Ninho Francos</div>
+    </div>
+
+    <section class="card">
+      <!-- Idiomas -->
+      <div class="langbar" role="group" aria-label="Escolher idioma">
+        <button data-lang="pt" aria-pressed="true">PT</button>
+        <button data-lang="en" aria-pressed="false">EN</button>
+        <button data-lang="es" aria-pressed="false">ES</button>
+        <button data-lang="fr" aria-pressed="false">FR</button>
+      </div>
+
+      <!-- Foto -->
+      <img class="hero" src="img/porta.png" alt="Porta de entrada" loading="eager" />
+
+      <div class="content">
+        <h1 id="t-h1">Porta de Entrada</h1>
+        <p id="t-sub" class="sub">Quando estiver à porta, toque em <strong>“Abrir”</strong>.</p>
+
+        <button id="btn" class="btn">Abrir</button>
+
+        <div id="msg" class="msg" aria-live="polite"></div>
+        <div id="t-hint" class="hint">
+          Após carregar em “Abrir”, deverá ouvir o ruído típico da porta do prédio a abrir. Depois desse ruído, se a porta não abrir, tente puxar e empurrar a porta.
+        </div>
+      </div>
+    </section>
+
+    <!-- Rodapé com logotipo + link + copyright -->
+    <footer class="footer">
+      <img class="footer-logo" src="img/logo.png" alt="Cidade Altruísta" />
+      <div class="site-link">
+        <a href="https://alojamento-ninho.pt/" target="_blank" rel="noopener">alojamento-ninho.pt</a>
+      </div>
+      <div class="copy">© <span id="y"></span> Cidade Altruísta</div>
+    </footer>
+  </main>
+
+  <script>
+    const ENDPOINT = "https://porta-proxy.cidadealtruista.workers.dev/?t=guest-2025-08";
+    const btn = document.getElementById("btn");
+    const msg = document.getElementById("msg");
+    document.getElementById("y").textContent = new Date().getFullYear();
+
+    // Traduções
+    const I18N = {
+      pt: {
+        title: "Abrir Porta — Ninho Francos",
+        h1: "Porta de Entrada",
+        sub: 'Quando estiver à porta, toque em <strong>“Abrir”</strong>.',
+        btn_default: "Abrir",
+        btn_opening: "A abrir…",
+        success_msg: "Aberto. Pode entrar.",
+        btn_success: "Aberto ✓",
+        error_msg: "Não foi possível abrir.",
+        btn_retry: "Tentar novamente",
+        hint: "Após carregar em “Abrir”, deverá ouvir o ruído típico da porta do prédio a abrir. Depois desse ruído, se a porta não abrir, tente puxar e empurrar a porta."
+      },
+      en: {
+        title: "Open Door — Ninho Francos",
+        h1: "Entrance Door",
+        sub: 'When you are at the door, tap <strong>“Open”</strong>.',
+        btn_default: "Open",
+        btn_opening: "Opening…",
+        success_msg: "Opened. You may enter.",
+        btn_success: "Opened ✓",
+        error_msg: "Couldn’t open.",
+        btn_retry: "Try again",
+        hint: "After tapping “Open”, you should hear the typical buzz of the building door unlocking. After this sound, if the door doesn’t open, try pulling and pushing the door."
+      },
+      es: {
+        title: "Abrir Puerta — Ninho Francos",
+        h1: "Puerta de Entrada",
+        sub: 'Cuando esté en la puerta, pulse <strong>“Abrir”</strong>.',
+        btn_default: "Abrir",
+        btn_opening: "Abriendo…",
+        success_msg: "Abierto. Puede entrar.",
+        btn_success: "Abierto ✓",
+        error_msg: "No se pudo abrir.",
+        btn_retry: "Intentar de nuevo",
+        hint: "Tras pulsar “Abrir”, debería oír el zumbido típico de la puerta del portal al desbloquearse. Después de ese sonido, si la puerta no abre, intente tirar y empujar la puerta."
+      },
+      fr: {
+        title: "Ouvrir la porte — Ninho Francos",
+        h1: "Porte d’entrée",
+        sub: 'Quand vous êtes devant la porte, appuyez sur <strong>« Ouvrir »</strong>.',
+        btn_default: "Ouvrir",
+        btn_opening: "Ouverture…",
+        success_msg: "Ouvert. Vous pouvez entrer.",
+        btn_success: "Ouvert ✓",
+        error_msg: "Impossible d’ouvrir.",
+        btn_retry: "Réessayer",
+        hint: "Après avoir appuyé sur « Ouvrir », vous devriez entendre le bourdonnement typique de la porte de l’immeuble qui se déverrouille. Après ce bruit, si la porte ne s’ouvre pas, essayez de tirer puis pousser la porte."
+      }
+    };
+
+    const els = {
+      h1: document.getElementById("t-h1"),
+      sub: document.getElementById("t-sub"),
+      hint: document.getElementById("t-hint"),
+    };
+
+    function applyLang(l){
+      const t = I18N[l] || I18N.pt;
+      document.documentElement.lang = l;
+      document.title = t.title;
+      els.h1.textContent = ""; els.h1.insertAdjacentHTML("afterbegin", t.h1);
+      els.sub.innerHTML = t.sub;
+      els.hint.textContent = t.hint;
+      btn.textContent = t.btn_default;
+
+      document.querySelectorAll(".langbar button").forEach(b=>{
+        b.setAttribute("aria-pressed", b.dataset.lang === l ? "true" : "false");
+      });
+
+      localStorage.setItem("lang", l);
+    }
+
+    document.querySelectorAll(".langbar button").forEach(b=>{
+      b.addEventListener("click", ()=> applyLang(b.dataset.lang));
+    });
+
+    const stored = localStorage.getItem("lang");
+    const guess = navigator.language?.toLowerCase() || "pt";
+    const initial = stored || (guess.startsWith("pt") ? "pt" : guess.startsWith("es") ? "es" : guess.startsWith("fr") ? "fr" : "en");
+    applyLang(initial);
+
+    async function abrir(){
+      const l = document.documentElement.lang;
+      const t = I18N[l] || I18N.pt;
+
+      const label = btn.textContent;
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner" aria-hidden="true"></span>${t.btn_opening}`;
+      msg.textContent = ""; msg.className = "msg";
+
+      try {
+        const r = await fetch(ENDPOINT, { method: "POST" });
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        msg.textContent = t.success_msg;
+        msg.className = "msg ok";
+        btn.innerHTML = t.btn_success;
+      } catch(e){
+        msg.textContent = t.error_msg;
+        msg.className = "msg err";
+        btn.innerHTML = t.btn_retry;
+      } finally {
+        setTimeout(() => { btn.disabled = false; btn.textContent = label; }, 2500);
+      }
+    }
+    btn.addEventListener("click", abrir);
+  </script>
+</body>
 </html>
