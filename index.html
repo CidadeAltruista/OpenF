@@ -109,7 +109,10 @@
         <h1 id="t-h1">Porta de Entrada</h1>
         <p id="t-sub" class="sub">Quando estiver à porta, toque em <strong>“Abrir”</strong>.</p>
 
-        <button id="btn" class="btn">Abrir</button>
+        <!-- Substitui o botão original por um contentor -->
+        <div id="btns">
+          <button id="btn" class="btn">Abrir</button>
+        </div>
 
         <div id="msg" class="msg" aria-live="polite"></div>
         <div id="t-hint" class="hint">
@@ -146,7 +149,10 @@
         btn_success: "Aberto ✓",
         error_msg: "Não foi possível abrir.",
         btn_retry: "Tentar novamente",
-        hint: "Após carregar em “Abrir”, deverá ouvir o ruído típico da porta do prédio a abrir. Depois desse ruído, se a porta não abrir, tente puxar e empurrar a porta."
+        hint: "Após carregar em “Abrir”, deverá ouvir o ruído típico da porta do prédio a abrir. Depois desse ruído, se a porta não abrir, tente puxar e empurrar a porta.",
+        confirm_text: "Confirmar a abertura?",
+        btn_confirm: "Confirmar",
+        btn_cancel: "Cancelar",
       },
       en: {
         title: "Open Door — Ninho Francos",
@@ -158,7 +164,10 @@
         btn_success: "Opened ✓",
         error_msg: "Couldn’t open.",
         btn_retry: "Try again",
-        hint: "After tapping “Open”, you should hear the typical buzz of the building door unlocking. After this sound, if the door doesn’t open, try pulling and pushing the door."
+        hint: "After tapping “Open”, you should hear the typical buzz of the building door unlocking. After this sound, if the door doesn’t open, try pulling and pushing the door.",
+        confirm_text: "Confirm opening?",
+        btn_confirm: "Confirm",
+        btn_cancel: "Cancel",
       },
       es: {
         title: "Abrir Puerta — Ninho Francos",
@@ -170,7 +179,10 @@
         btn_success: "Abierto ✓",
         error_msg: "No se pudo abrir.",
         btn_retry: "Intentar de nuevo",
-        hint: "Tras pulsar “Abrir”, debería oír el zumbido típico de la puerta del portal al desbloquearse. Después de ese sonido, si la puerta no abre, intente tirar y empujar la puerta."
+        hint: "Tras pulsar “Abrir”, debería oír el zumbido típico de la puerta del portal al desbloquearse. Después de ese sonido, si la puerta no abre, intente tirar e empujar la puerta.",
+        confirm_text: "¿Confirmar apertura?",
+        btn_confirm: "Confirmar",
+        btn_cancel: "Cancelar",
       },
       fr: {
         title: "Ouvrir la porte — Ninho Francos",
@@ -182,7 +194,10 @@
         btn_success: "Ouvert ✓",
         error_msg: "Impossible d’ouvrir.",
         btn_retry: "Réessayer",
-        hint: "Après avoir appuyé sur « Ouvrir », vous devriez entendre le bourdonnement typique de la porte de l’immeuble qui se déverrouille. Après ce bruit, si la porte ne s’ouvre pas, essayez de tirer puis pousser la porte."
+        hint: "Après avoir appuyé sur « Ouvrir », vous devriez entendre le bourdonnement typique de la porte de l’immeuble qui se déverrouille. Après ce bruit, si la porte ne s’ouvre pas, essayez de tirer puis pousser la porte.",
+        confirm_text: "Confirmer l’ouverture ?",
+        btn_confirm: "Confirmer",
+        btn_cancel: "Annuler",
       }
     };
 
@@ -192,6 +207,31 @@
       hint: document.getElementById("t-hint"),
     };
 
+    // Adiciona referências aos novos botões
+    const btns = document.getElementById("btns");
+
+    // Função para restaurar o botão original
+    function showMainBtn() {
+      const l = document.documentElement.lang;
+      const t = I18N[l] || I18N.pt;
+      btns.innerHTML = `<button id="btn" class="btn">${t.btn_default}</button>`;
+      document.getElementById("btn").addEventListener("click", showConfirmBtns);
+    }
+
+    // Função para mostrar os botões Confirmar/Cancelar
+    function showConfirmBtns() {
+      const l = document.documentElement.lang;
+      const t = I18N[l] || I18N.pt;
+      btns.innerHTML = `
+        <div style="margin-bottom:12px;font-weight:600;text-align:center">${t.confirm_text}</div>
+        <button id="btn-confirm" class="btn" style="width:49%">${t.btn_confirm}</button>
+        <button id="btn-cancel" class="btn" style="width:49%;background:var(--azul);color:#fff">${t.btn_cancel}</button>
+      `;
+      document.getElementById("btn-confirm").addEventListener("click", abrir);
+      document.getElementById("btn-cancel").addEventListener("click", showMainBtn);
+    }
+
+    // Função para aplicar o idioma selecionado
     function applyLang(l){
       const t = I18N[l] || I18N.pt;
       document.documentElement.lang = l;
@@ -199,7 +239,7 @@
       els.h1.textContent = ""; els.h1.insertAdjacentHTML("afterbegin", t.h1);
       els.sub.innerHTML = t.sub;
       els.hint.textContent = t.hint;
-      btn.textContent = t.btn_default;
+      showMainBtn();
 
       document.querySelectorAll(".langbar button").forEach(b=>{
         b.setAttribute("aria-pressed", b.dataset.lang === l ? "true" : "false");
@@ -220,10 +260,12 @@
     async function abrir(){
       const l = document.documentElement.lang;
       const t = I18N[l] || I18N.pt;
+      const btnConfirm = document.getElementById("btn-confirm");
+      if (!btnConfirm) return;
 
-      const label = btn.textContent;
-      btn.disabled = true;
-      btn.innerHTML = `<span class="spinner" aria-hidden="true"></span>${t.btn_opening}`;
+      const label = btnConfirm.textContent;
+      btnConfirm.disabled = true;
+      btnConfirm.innerHTML = `<span class="spinner" aria-hidden="true"></span>${t.btn_opening}`;
       msg.textContent = ""; msg.className = "msg";
 
       try {
@@ -231,16 +273,18 @@
         if (!r.ok) throw new Error("HTTP " + r.status);
         msg.textContent = t.success_msg;
         msg.className = "msg ok";
-        btn.innerHTML = t.btn_success;
+        btnConfirm.innerHTML = t.btn_success;
       } catch(e){
         msg.textContent = t.error_msg;
         msg.className = "msg err";
-        btn.innerHTML = t.btn_retry;
+        btnConfirm.innerHTML = t.btn_retry;
       } finally {
-        setTimeout(() => { btn.disabled = false; btn.textContent = label; }, 2500);
+        setTimeout(() => { showMainBtn(); }, 2500);
       }
     }
-    btn.addEventListener("click", abrir);
+
+    // Inicializa o botão principal
+    showMainBtn();
   </script>
 </body>
 </html>
