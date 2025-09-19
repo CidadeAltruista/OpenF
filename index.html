@@ -132,6 +132,20 @@
   </main>
 
   <script>
+
+    // --- Captar ID do URL ---
+    function getUserIdFromUrl() {
+      const path = (location.pathname || "").split("/").filter(Boolean);
+      // se a página for /OpenF/ e tiver um segmento a seguir, usamos esse como ID
+      const last = path[path.length - 1] || "";
+      const fromPath = (last && last.toLowerCase() !== "index.html") ? last : "";
+      const fromQuery = new URLSearchParams(location.search).get("id") || "";
+
+      return fromQuery || fromPath || ""; // prioridade: query, depois path
+    }
+    const USER_ID = getUserIdFromUrl();
+
+
     const ENDPOINT = "https://porta-proxy.cidadealtruista.workers.dev/?t=guest-2025-08";
     const btn = document.getElementById("btn");
     const msg = document.getElementById("msg");
@@ -263,18 +277,24 @@
       const btnConfirm = document.getElementById("btn-confirm");
       if (!btnConfirm) return;
 
-      const label = btnConfirm.textContent;
       btnConfirm.disabled = true;
       btnConfirm.innerHTML = `<span class="spinner" aria-hidden="true"></span>${t.btn_opening}`;
-      msg.textContent = ""; msg.className = "msg";
+      msg.textContent = "";
+      msg.className = "msg";
 
       try {
-        const r = await fetch(ENDPOINT, { method: "POST" });
+        // se houver USER_ID, acrescenta como query string ?uid=...
+        const url = USER_ID
+          ? ENDPOINT + (ENDPOINT.includes("?") ? "&" : "?") + "uid=" + encodeURIComponent(USER_ID)
+          : ENDPOINT;
+
+        const r = await fetch(url, { method: "POST" });
         if (!r.ok) throw new Error("HTTP " + r.status);
+
         msg.textContent = t.success_msg;
         msg.className = "msg ok";
         btnConfirm.innerHTML = t.btn_success;
-      } catch(e){
+      } catch (e) {
         msg.textContent = t.error_msg;
         msg.className = "msg err";
         btnConfirm.innerHTML = t.btn_retry;
@@ -282,6 +302,7 @@
         setTimeout(() => { showMainBtn(); }, 2500);
       }
     }
+
 
     // Inicializa o botão principal
     showMainBtn();
