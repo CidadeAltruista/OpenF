@@ -85,6 +85,13 @@
       font-weight: 700;
     }
     .site-link a:hover { text-decoration: underline; }
+
+    /* Modo de teste: tudo a P&B */
+    html.bw {
+      filter: grayscale(1) contrast(3);;
+    }
+
+
   </style>
 </head>
 <body>
@@ -144,6 +151,13 @@
       return fromQuery || fromPath || ""; // prioridade: query, depois path
     }
     const USER_ID = getUserIdFromUrl();
+
+    // Se o id for "testando", ativar modo P&B
+    if (USER_ID && USER_ID.toLowerCase() === "testando") {
+      document.documentElement.classList.add("bw");
+      document.title = "⚪⚫ [TESTE] " + document.title;
+    }
+
 
 
     const ENDPOINT = "https://porta-proxy.cidadealtruista.workers.dev/?t=guest-2025-08";
